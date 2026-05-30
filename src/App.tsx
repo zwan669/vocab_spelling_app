@@ -11,6 +11,7 @@ function App() {
   const [content, setContent] = useState<TestContent>('both'); // Defaulting to 'both' to show full worksheet
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [days, setDays] = useState<number>(1);
+  const [marginOption, setMarginOption] = useState<'small' | 'normal' | 'large'>('normal');
 
   const handleImport = (text: string) => {
     try {
@@ -29,29 +30,41 @@ function App() {
     window.print();
   };
 
-  // Chunking logic for splitting data across multiple days
+  // Chunking logic for splitting data across days AND pages
+  const ITEMS_PER_PAGE = content === 'words' ? 50 : (content === 'sentences' ? 20 : 16);
   const actualDays = Math.min(days, Math.max(1, data.length));
-  const chunks: VocabItem[][] = [];
+  
+  const allPages: { day: number; currentDayPage: number; totalDayPages: number; startIndex: number; items: VocabItem[] }[] = [];
+  
   if (data.length > 0) {
     const baseSize = Math.floor(data.length / actualDays);
     let remainder = data.length % actualDays;
-    let start = 0;
+    let dataIndex = 0;
+    
     for (let i = 0; i < actualDays; i++) {
       const size = baseSize + (remainder > 0 ? 1 : 0);
       remainder--;
-      if (size > 0) {
-        chunks.push(data.slice(start, start + size));
-      } else {
-        chunks.push([]);
+      
+      const dayData = data.slice(dataIndex, dataIndex + size);
+      dataIndex += size;
+      
+      const dayPagesCount = Math.ceil(dayData.length / ITEMS_PER_PAGE) || 1;
+      for (let p = 0; p < dayPagesCount; p++) {
+        allPages.push({
+          day: i + 1,
+          currentDayPage: p + 1,
+          totalDayPages: dayPagesCount,
+          startIndex: p * ITEMS_PER_PAGE,
+          items: dayData.slice(p * ITEMS_PER_PAGE, (p + 1) * ITEMS_PER_PAGE)
+        });
       }
-      start += size;
     }
   } else {
-    chunks.push([]); // render at least an empty sheet
+    allPages.push({ day: 1, currentDayPage: 1, totalDayPages: 1, startIndex: 0, items: [] });
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans print:bg-white text-slate-900 flex flex-col h-screen overflow-hidden">
+    <div className="min-h-screen bg-slate-50 font-sans print:bg-white text-slate-900 flex flex-col">
       
       {/* Top Controls Bar (Hidden while printing) */}
       <div className="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-sm print:hidden shrink-0">
@@ -109,6 +122,19 @@ function App() {
                 className="w-14 bg-white border text-xs font-bold text-slate-700 border-slate-200 rounded px-2 py-1.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-sm"
               />
             </div>
+
+            <div className="w-px h-5 bg-slate-300 hidden md:block shrink-0"></div>
+
+            {/* Margin Selector */}
+            <select 
+              value={marginOption} 
+              onChange={(e) => setMarginOption(e.target.value as 'small' | 'normal' | 'large')}
+              className="bg-white border text-xs font-bold text-slate-700 border-slate-200 rounded px-3 py-1.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer shadow-sm hover:border-slate-300 transition-colors shrink-0 outline-none"
+            >
+              <option value="small">Margin: Small</option>
+              <option value="normal">Margin: Normal</option>
+              <option value="large">Margin: Large</option>
+            </select>
           </div>
 
           {/* Action Buttons */}
@@ -133,15 +159,19 @@ function App() {
       </div>
 
       {/* Main View Area */}
-      <div className="flex-1 bg-slate-500 p-4 sm:p-8 flex flex-col items-center overflow-auto print:p-0 print:bg-white print:overflow-visible print:block gap-8 print:gap-0">
-        {chunks.map((chunk, index) => (
+      <div className="flex-1 bg-slate-500 py-8 px-4 sm:px-8 flex flex-col items-center gap-8 print:p-0 print:bg-white print:gap-0">
+        {allPages.map((page, index) => (
           <PrintSheet 
             key={index} 
-            data={chunk} 
+            data={page.items} 
             mode={mode} 
             content={content} 
-            dayNumber={index + 1}
+            dayNumber={page.day}
             totalDays={actualDays}
+            pageIndex={page.currentDayPage}
+            totalPages={page.totalDayPages}
+            startIndex={page.startIndex}
+            marginOption={marginOption}
           />
         ))}
       </div>
