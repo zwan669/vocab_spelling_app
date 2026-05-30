@@ -8,22 +8,19 @@ export interface PrintSheetProps {
   content: TestContent;
   dayNumber?: number;
   totalDays?: number;
-  pageIndex?: number;
-  totalPages?: number;
   startIndex?: number;
   marginOption?: 'small' | 'normal' | 'large';
+  isFirst?: boolean;
 }
 
 export function PrintSheet({ 
   data, 
   mode, 
   content, 
-  dayNumber, 
   totalDays, 
-  pageIndex, 
-  totalPages, 
   startIndex = 0,
-  marginOption = 'normal'
+  marginOption = 'normal',
+  isFirst = false
 }: PrintSheetProps) {
   const showWords = content === 'words' || content === 'both';
   const showSentences = content === 'sentences' || content === 'both';
@@ -34,17 +31,23 @@ export function PrintSheet({
     large: 'md:p-[20mm]'
   };
 
+  const marginMm = marginOption === 'small' ? '8mm' : marginOption === 'large' ? '20mm' : '12mm';
+
   return (
-    <div className={`bg-white mx-auto w-full max-w-[210mm] min-h-[297mm] p-6 sm:p-10 ${marginClasses[marginOption]} shadow-2xl print:shadow-none print:max-w-none print:p-0 flex flex-col box-border origin-top print:break-after-page relative`}>
-      <style>{`
-        @media print {
-          .print\\\\:p-0 {
-             padding: ${marginOption === 'small' ? '8mm' : marginOption === 'large' ? '20mm' : '12mm'} !important;
+    <>
+      {isFirst && (
+        <style dangerouslySetInnerHTML={{__html: `
+          @media print {
+            @page {
+              size: A4;
+              margin: ${marginMm};
+            }
           }
-        }
-      `}</style>
+        `}} />
+      )}
+      <div className={`bg-white mx-auto w-full max-w-[210mm] min-h-[297mm] p-6 sm:p-10 ${marginClasses[marginOption]} shadow-2xl print:shadow-none print:max-w-none print:p-0 flex flex-col box-border relative print:min-h-0 print:h-auto ${!isFirst ? 'print:break-before-page' : ''}`}>
       
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 print:grid-cols-2 mb-8 print:mb-6 mt-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 print:grid-cols-2 mb-8 print:mb-0 mt-2">
         {data.map((item, i) => {
           const renderWord = showWords;
           const renderSentence = showSentences && (item.engSentence || item.chnSentence);
@@ -89,5 +92,6 @@ export function PrintSheet({
       )}
 
       </div>
+    </>
   );
 }

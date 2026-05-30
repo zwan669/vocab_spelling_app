@@ -30,11 +30,10 @@ function App() {
     window.print();
   };
 
-  // Chunking logic for splitting data across days AND pages
-  const ITEMS_PER_PAGE = content === 'words' ? 50 : (content === 'sentences' ? 20 : 16);
+  // Chunking logic for splitting data across days
   const actualDays = Math.min(days, Math.max(1, data.length));
   
-  const allPages: { day: number; currentDayPage: number; totalDayPages: number; startIndex: number; items: VocabItem[] }[] = [];
+  const dailyChunks: { day: number; items: VocabItem[] }[] = [];
   
   if (data.length > 0) {
     const baseSize = Math.floor(data.length / actualDays);
@@ -48,19 +47,13 @@ function App() {
       const dayData = data.slice(dataIndex, dataIndex + size);
       dataIndex += size;
       
-      const dayPagesCount = Math.ceil(dayData.length / ITEMS_PER_PAGE) || 1;
-      for (let p = 0; p < dayPagesCount; p++) {
-        allPages.push({
-          day: i + 1,
-          currentDayPage: p + 1,
-          totalDayPages: dayPagesCount,
-          startIndex: p * ITEMS_PER_PAGE,
-          items: dayData.slice(p * ITEMS_PER_PAGE, (p + 1) * ITEMS_PER_PAGE)
-        });
-      }
+      dailyChunks.push({
+        day: i + 1,
+        items: dayData
+      });
     }
   } else {
-    allPages.push({ day: 1, currentDayPage: 1, totalDayPages: 1, startIndex: 0, items: [] });
+    dailyChunks.push({ day: 1, items: [] });
   }
 
   return (
@@ -160,18 +153,17 @@ function App() {
 
       {/* Main View Area */}
       <div className="flex-1 bg-slate-500 py-8 px-4 sm:px-8 flex flex-col items-center gap-8 print:p-0 print:bg-white print:gap-0">
-        {allPages.map((page, index) => (
+        {dailyChunks.map((chunk, index) => (
           <PrintSheet 
             key={index} 
-            data={page.items} 
+            data={chunk.items} 
             mode={mode} 
             content={content} 
-            dayNumber={page.day}
+            dayNumber={chunk.day}
             totalDays={actualDays}
-            pageIndex={page.currentDayPage}
-            totalPages={page.totalDayPages}
-            startIndex={page.startIndex}
+            startIndex={0}
             marginOption={marginOption}
+            isFirst={index === 0}
           />
         ))}
       </div>
